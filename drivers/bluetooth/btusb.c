@@ -411,6 +411,9 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x13d3, 0x3461), .driver_info = BTUSB_REALTEK },
 	{ USB_DEVICE(0x13d3, 0x3462), .driver_info = BTUSB_REALTEK },
 
+        /* Additional Realtek 8761B Bluetooth devices */
+        { USB_DEVICE(0x2357, 0x0604), .driver_info = BTUSB_REALTEK },
+
 	/* Additional Realtek 8822BE Bluetooth devices */
 	{ USB_DEVICE(0x13d3, 0x3526), .driver_info = BTUSB_REALTEK },
 	{ USB_DEVICE(0x0b05, 0x185c), .driver_info = BTUSB_REALTEK },
@@ -4033,6 +4036,10 @@ static int btusb_suspend(struct usb_interface *intf, pm_message_t message)
 	struct btusb_data *data = usb_get_intfdata(intf);
 
 	BT_DBG("intf %p", intf);
+
+	/* Don't suspend if there are connections */
+	if (hci_conn_count(data->hdev))
+		return -EBUSY;
 
 	if (data->suspend_count++)
 		return 0;

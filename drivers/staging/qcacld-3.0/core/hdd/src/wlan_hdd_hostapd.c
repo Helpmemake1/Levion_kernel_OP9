@@ -3791,7 +3791,7 @@ struct hdd_adapter *hdd_wlan_create_ap_dev(struct hdd_context *hdd_ctx,
 		(int)policy_mgr_get_concurrency_mode(hdd_ctx->psoc));
 
 	/* Init the net_device structure */
-	strlcpy(dev->name, (const char *)iface_name, IFNAMSIZ);
+	strscpy(dev->name, (const char *)iface_name, IFNAMSIZ);
 
 	hdd_set_ap_ops(dev);
 
@@ -6843,7 +6843,8 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 			goto err_start_bss;
 		}
 
-		if (wdev->chandef.chan->center_freq !=
+		if (wdev->chandef.chan &&
+		    wdev->chandef.chan->center_freq !=
 				params->chandef.chan->center_freq)
 			params->chandef = wdev->chandef;
 		/*

@@ -238,7 +238,7 @@ int htc_init(struct htc_target *target)
 	return htc_setup_complete(target);
 }
 
-int htc_connect_service(struct htc_target *target,
+int htc_connect_service_hst(struct htc_target *target,
 		     struct htc_service_connreq *service_connreq,
 		     enum htc_endpoint_id *conn_rsp_epid)
 {
@@ -318,12 +318,12 @@ int htc_send_epid(struct htc_target *target, struct sk_buff *skb,
 	return htc_issue_send(target, skb, skb->len, 0, epid);
 }
 
-void htc_stop(struct htc_target *target)
+void htc_stop_hst(struct htc_target *target)
 {
 	target->hif->stop(target->hif_dev);
 }
 
-void htc_start(struct htc_target *target)
+void htc_start_hst(struct htc_target *target)
 {
 	target->hif->start(target->hif_dev);
 }
@@ -400,7 +400,7 @@ static void ath9k_htc_fw_panic_report(struct htc_target *htc_handle,
  * HTC Messages are handled directly here and the obtained SKB
  * is freed.
  *
- * Service messages (Data, WMI) are passed to the corresponding
+ * Service messages (Data, WMI) passed to the corresponding
  * endpoint RX handlers, which have to free the SKB.
  */
 void ath9k_htc_rx_msg(struct htc_target *htc_handle,
@@ -487,8 +487,6 @@ invalid:
 		if (endpoint->ep_callbacks.rx)
 			endpoint->ep_callbacks.rx(endpoint->ep_callbacks.priv,
 						  skb, epid);
-		else
-			goto invalid;
 	}
 }
 
