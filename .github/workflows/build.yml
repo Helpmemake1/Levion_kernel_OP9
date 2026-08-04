@@ -16,7 +16,7 @@ jobs:
       - name: Set up Build Environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential bc bison flex libssl-dev libncurses-dev libelf-dev git zip
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libncurses-dev libelf-dev git zip gcc-aarch64-linux-gnu
 
       - name: Download Clang Toolchain
         run: |
@@ -28,17 +28,15 @@ jobs:
           export ARCH=arm64
           export SUBARCH=arm64
           export CC=clang
-          export CLANG_TRIPLE=aarch64-linux-gnu-
-          export CROSS_COMPILE=aarch64-linux-android-
           
           mkdir out
-          make O=out vendor/lahaina-gki_defconfig
-          make -j$(nproc) O=out
+          make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 vendor/lahaina-gki_defconfig
+          make -j$(nproc) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1
 
       - name: Package with AnyKernel3
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel
-          cp out/arch/arm64/boot/Image AnyKernel/ || cp out/arch/arm64/boot/Image.gz AnyKernel/
+          cp out/arch/arm64/boot/Image AnyKernel/ || cp out/arch/arm64/boot/Image.gz AnyKernel/ || cp out/arch/arm64/boot/Image.lz4 AnyKernel/
           cd AnyKernel
           zip -r9 ../Levion-NetHunter-MT7610U.zip * -x .git\* README.md
 
