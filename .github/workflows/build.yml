@@ -35,6 +35,19 @@ jobs:
             echo '    CAN ISO 15765-2 Transport Protocol (ISO-TP)' >> drivers/net/can/can-isotp/Kconfig
           fi
 
+      - name: Setup Defconfig & Security Flags
+        run: |
+          mkdir -p out
+          export PATH="$HOME/clang/bin:$PATH"
+          
+          # Generate base config
+          make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 vendor/lahaina-gki_defconfig
+          
+          # Fix KernelSU hook mode & Baseband-guard LSM requirement
+          scripts/config --file out/.config --enable CONFIG_KSU
+          scripts/config --file out/.config --enable CONFIG_KSU_MANUAL_HOOK
+          scripts/config --file out/.config --set-str CONFIG_LSM "lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf,bbg"
+
       - name: Compile Kernel
         run: |
           export PATH="$HOME/clang/bin:$PATH"
@@ -42,8 +55,6 @@ jobs:
           export SUBARCH=arm64
           export CC=clang
           
-          mkdir out
-          make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 vendor/lahaina-gki_defconfig
           make -j$(nproc) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1
 
       - name: Package with AnyKernel3
