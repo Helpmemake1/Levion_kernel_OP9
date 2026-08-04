@@ -20,7 +20,7 @@ jobs:
 
       - name: Download Clang Toolchain
         run: |
-          git clone --depth=1 https://github.com/ZyCronium/ZyC-Clang.git "$HOME/clang"
+          git clone --depth=1 https://gitlab.com/Panchajanya1999/azure-clang.git "$HOME/clang"
 
       - name: Compile Kernel
         run: |
@@ -35,19 +35,6 @@ jobs:
           make O=out vendor/lahaina-gki_defconfig
           make -j$(nproc) O=out
 
-      - name: Package with AnyKernel3
-        run: |
-          git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel
-          cp out/arch/arm64/boot/Image AnyKernel/ || cp out/arch/arm64/boot/Image.gz AnyKernel/
-          cd AnyKernel
-          zip -r9 ../Levion-NetHunter-MT7610U.zip * -x .git\* README.md
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Levion-NetHunter-Kernel
-          path: Levion-NetHunter-MT7610U.zip
-          
       - name: Package with AnyKernel3
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel
