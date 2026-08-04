@@ -24,9 +24,15 @@ jobs:
 
       - name: Restore CAN ISO-TP Module
         run: |
-          if [ ! -d "drivers/net/can/can-isotp" ]; then
-            mkdir -p drivers/net/can/can-isotp
-            git clone --depth=1 https://github.com/hartkopp/can-isotp.git drivers/net/can/can-isotp
+          rm -rf drivers/net/can/can-isotp
+          mkdir -p drivers/net/can/can-isotp
+          git clone --depth=1 https://github.com/hartkopp/can-isotp.git drivers/net/can/can-isotp
+          if [ ! -f "drivers/net/can/can-isotp/Kconfig" ]; then
+            echo 'config CAN_ISOTP' > drivers/net/can/can-isotp/Kconfig
+            echo '  tristate "ISO 15765-2 CAN transport protocol"' >> drivers/net/can/can-isotp/Kconfig
+            echo '  depends on CAN' >> drivers/net/can/can-isotp/Kconfig
+            echo '  help' >> drivers/net/can/can-isotp/Kconfig
+            echo '    CAN ISO 15765-2 Transport Protocol (ISO-TP)' >> drivers/net/can/can-isotp/Kconfig
           fi
 
       - name: Compile Kernel
