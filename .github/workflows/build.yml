@@ -40,15 +40,16 @@ jobs:
           mkdir -p out
           export PATH="$HOME/clang/bin:$PATH"
           
-          # Inject BBG directly into source defconfig
-          sed -i 's/CONFIG_LSM=.*/CONFIG_LSM="lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf,bbg"/' arch/arm64/configs/vendor/lahaina-gki_defconfig || true
+          # Patch all config sources to ensure bbg is included in LSM
+          find arch/arm64/configs/ -type f -exec sed -i 's/CONFIG_LSM=.*/CONFIG_LSM="lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf,bbg"/' {} + || true
           
           # Generate base config
           make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 vendor/lahaina-gki_defconfig
           
-          # Configure KernelSU
+          # Configure KernelSU and explicitly inject bbg into generated .config
           scripts/config --file out/.config --enable CONFIG_KSU
           scripts/config --file out/.config --enable CONFIG_KSU_MANUAL_HOOK
+          scripts/config --file out/.config --set-str CONFIG_LSM "lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf,bbg"
 
       - name: Compile Kernel
         run: |
@@ -57,7 +58,8 @@ jobs:
           export SUBARCH=arm64
           export CC=clang
           
-          make -j$(nproc) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1
+          # Pass CONFIG_LSM directly to make environment
+          make -j$(nproc) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 CONFIG_LSM="lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf,bbg"
 
       - name: Package with AnyKernel3
         run: |
