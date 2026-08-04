@@ -22,6 +22,13 @@ jobs:
         run: |
           git clone --depth=1 https://gitlab.com/Panchajanya1999/azure-clang.git "$HOME/clang"
 
+      - name: Restore CAN ISO-TP Module
+        run: |
+          if [ ! -d "drivers/net/can/can-isotp" ]; then
+            mkdir -p drivers/net/can/can-isotp
+            git clone --depth=1 https://github.com/hartkopp/can-isotp.git drivers/net/can/can-isotp
+          fi
+
       - name: Compile Kernel
         run: |
           export PATH="$HOME/clang/bin:$PATH"
