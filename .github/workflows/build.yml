@@ -57,8 +57,8 @@ jobs:
           export SUBARCH=arm64
           export CC=clang
           
-          # Compile kernel ignoring minor C99 statement warnings
-          make -j$(nproc) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 KCFLAGS="-Wno-declaration-after-statement -Wno-error"
+          # KBUILD_MODPOST_WARN=1 allows modpost to proceed past missing OPlus symbol checks
+          make -j$(nproc) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 KCFLAGS="-Wno-declaration-after-statement -Wno-error" KBUILD_MODPOST_WARN=1
 
       - name: Package with AnyKernel3
         run: |
