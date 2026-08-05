@@ -80,8 +80,8 @@ jobs:
           # Strip debug info (collapses modules down to ~200KB each)
           find dlkm_staging/ -name "*.ko" -exec "$HOME/clang/bin/llvm-strip" --strip-debug {} + || true
           
-          # 4. Build slim compressed EROFS vendor_dlkm.img with 4k block alignment
-          mkfs.erofs -b 4096 -z lz4hc AnyKernel/vendor_dlkm.img dlkm_staging/lib/modules/
+          # 4. Build slim compressed EROFS vendor_dlkm.img with LZ4HC compression
+          mkfs.erofs -z lz4hc AnyKernel/vendor_dlkm.img dlkm_staging/
           
           # 5. Pack AnyKernel zip archive (excluding raw modules folder)
           cd AnyKernel
