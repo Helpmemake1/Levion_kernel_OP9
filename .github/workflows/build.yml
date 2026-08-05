@@ -40,11 +40,13 @@ jobs:
           mkdir -p out
           export PATH="$HOME/clang/bin:$PATH"
           
-          # Generate base config from lahaina-gki_defconfig
+          # Disable CONFIG_BBG in source defconfigs
           sed -i 's/CONFIG_BBG=y/CONFIG_BBG=n/g' arch/arm64/configs/vendor/lahaina-gki_defconfig || true
+          
+          # Generate base config
           make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 vendor/lahaina-gki_defconfig
           
-          # Explicitly disable BBG and KernelSU
+          # Explicitly disable BBG and KernelSU (for Magisk)
           scripts/config --file out/.config --disable CONFIG_BBG
           scripts/config --file out/.config --disable CONFIG_KSU
 
@@ -63,68 +65,45 @@ jobs:
           export PATH="$HOME/clang/bin:$PATH"
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel
           
+          # Clean default placeholders
           rm -rf AnyKernel/ramdisk AnyKernel/patch AnyKernel/.git
           
-          # 1. Write specialized anykernel.sh with explicit vendor_dlkm flashing
-          cat << 'EOF' > AnyKernel/anykernel.sh
-### AnyKernel3 Ramdisk Mod Script
-properties() { '
-kernel.string=### Levion Kernel for OnePlus 9/Pro ###
-do.devicecheck=1
-do.modules=0
-do.systemless=1
-do.cleanup=1
-do.cleanuponabort=0
-device.name1=OnePlus9Pro
-device.name2=lemonadep
-device.name3=OnePlus9ProTMO
-device.name4=lemonadept
-device.name5=OnePlus9
-device.name6=lemonade
-device.name7=OnePlus9TMO
-device.name8=lemonadet
-device.name9=OnePlus9VZW
-device.name10=lemonadev
-supported.versions=15-16
-'; }
-
-fstrim -v /data;
-
-boot_attributes() {
-  set_perm_recursive 0 0 755 644 $RAMDISK/overlay.d/*;
-  set_perm_recursive 0 0 750 750 $RAMDISK/overlay.d/sbin;
-}
-
-BLOCK=boot;
-IS_SLOT_DEVICE=1;
-RAMDISK_COMPRESSION=auto;
-PATCH_VBMETA_FLAG=auto;
-NO_VBMETA_PARTITION_PATCH=1;
-
-. tools/ak3-core.sh;
-
-dump_boot;
-write_boot;
-
-# Flash vendor_dlkm partition explicitly
-if [ -f vendor_dlkm.img ]; then
-  flash_generic vendor_dlkm;
-fi
-
-vendor_boot_attributes() {
-  set_perm_recursive 0 0 755 644 $RAMDISK/*;
-}
-
-BLOCK=vendor_boot;
-IS_SLOT_DEVICE=1;
-RAMDISK_COMPRESSION=auto;
-PATCH_VBMETA_FLAG=auto;
-NO_VBMETA_PARTITION_PATCH=1;
-
-reset_ak;
-dump_boot;
-write_boot;
-EOF
+          # 1. Check for existing anykernel.sh or write complete script
+          if [ -f "anykernel.sh" ]; then
+            cp anykernel.sh AnyKernel/anykernel.sh
+          else
+            {
+              echo "### AnyKernel3 Ramdisk Mod Script"
+              echo "properties() { '"
+              echo "kernel.string=### Levion Kernel for OnePlus 9/Pro ###"
+              echo "do.devicecheck=1"
+              echo "do.modules=0"
+              echo "do.systemless=1"
+              echo "do.cleanup=1"
+              echo "do.cleanuponabort=0"
+              echo "device.name1=OnePlus9Pro"
+              echo "device.name2=lemonadep"
+              echo "device.name3=OnePlus9ProTMO"
+              echo "device.name4=lemonadept"
+              echo "device.name5=OnePlus9"
+              echo "device.name6=lemonade"
+              echo "device.name7=OnePlus9TMO"
+              echo "device.name8=lemonadet"
+              echo "device.name9=OnePlus9VZW"
+              echo "device.name10=lemonadev"
+              echo "supported.versions=15-16"
+              echo "'; }"
+              echo "fstrim -v /data;"
+              echo "boot_attributes() { set_perm_recursive 0 0 755 644 \$RAMDISK/overlay.d/*; set_perm_recursive 0 0 750 750 \$RAMDISK/overlay.d/sbin; }"
+              echo "BLOCK=boot; IS_SLOT_DEVICE=1; RAMDISK_COMPRESSION=auto; PATCH_VBMETA_FLAG=auto; NO_VBMETA_PARTITION_PATCH=1;"
+              echo ". tools/ak3-core.sh;"
+              echo "dump_boot; write_boot;"
+              echo 'if [ -f vendor_dlkm.img ]; then flash_generic vendor_dlkm; fi'
+              echo "vendor_boot_attributes() { set_perm_recursive 0 0 755 644 \$RAMDISK/*; }"
+              echo "BLOCK=vendor_boot; IS_SLOT_DEVICE=1; RAMDISK_COMPRESSION=auto; PATCH_VBMETA_FLAG=auto; NO_VBMETA_PARTITION_PATCH=1;"
+              echo "reset_ak; dump_boot; write_boot;"
+            } > AnyKernel/anykernel.sh
+          fi
 
           # 2. Copy vendor_ramdisk, banner, and README if present
           if [ -d "vendor_ramdisk" ]; then cp -r vendor_ramdisk AnyKernel/; fi
