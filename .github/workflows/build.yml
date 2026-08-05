@@ -40,13 +40,10 @@ jobs:
           mkdir -p out
           export PATH="$HOME/clang/bin:$PATH"
           
-          # Disable CONFIG_BBG in source defconfigs
-          sed -i 's/CONFIG_BBG=y/CONFIG_BBG=n/g' arch/arm64/configs/vendor/lahaina-gki_defconfig || true
+          # Merge base GKI config with vendor lahaina configs
+          make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 vendor/lahaina-gki_defconfig vendor/lahaina_user.config
           
-          # Generate base config
-          make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 vendor/lahaina-gki_defconfig
-          
-          # Explicitly disable BBG and KernelSU (for Magisk)
+          # Explicitly disable BBG and KernelSU
           scripts/config --file out/.config --disable CONFIG_BBG
           scripts/config --file out/.config --disable CONFIG_KSU
 
@@ -65,52 +62,48 @@ jobs:
           export PATH="$HOME/clang/bin:$PATH"
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel
           
-          # Clean default placeholders
+          # Clean AnyKernel template defaults
           rm -rf AnyKernel/ramdisk AnyKernel/patch AnyKernel/.git
           
-          # 1. Check for existing anykernel.sh or write complete script
-          if [ -f "anykernel.sh" ]; then
-            cp anykernel.sh AnyKernel/anykernel.sh
-          else
-            {
-              echo "### AnyKernel3 Ramdisk Mod Script"
-              echo "properties() { '"
-              echo "kernel.string=### Levion Kernel for OnePlus 9/Pro ###"
-              echo "do.devicecheck=1"
-              echo "do.modules=0"
-              echo "do.systemless=1"
-              echo "do.cleanup=1"
-              echo "do.cleanuponabort=0"
-              echo "device.name1=OnePlus9Pro"
-              echo "device.name2=lemonadep"
-              echo "device.name3=OnePlus9ProTMO"
-              echo "device.name4=lemonadept"
-              echo "device.name5=OnePlus9"
-              echo "device.name6=lemonade"
-              echo "device.name7=OnePlus9TMO"
-              echo "device.name8=lemonadet"
-              echo "device.name9=OnePlus9VZW"
-              echo "device.name10=lemonadev"
-              echo "supported.versions=15-16"
-              echo "'; }"
-              echo "fstrim -v /data;"
-              echo "boot_attributes() { set_perm_recursive 0 0 755 644 \$RAMDISK/overlay.d/*; set_perm_recursive 0 0 750 750 \$RAMDISK/overlay.d/sbin; }"
-              echo "BLOCK=boot; IS_SLOT_DEVICE=1; RAMDISK_COMPRESSION=auto; PATCH_VBMETA_FLAG=auto; NO_VBMETA_PARTITION_PATCH=1;"
-              echo ". tools/ak3-core.sh;"
-              echo "dump_boot; write_boot;"
-              echo 'if [ -f vendor_dlkm.img ]; then flash_generic vendor_dlkm; fi'
-              echo "vendor_boot_attributes() { set_perm_recursive 0 0 755 644 \$RAMDISK/*; }"
-              echo "BLOCK=vendor_boot; IS_SLOT_DEVICE=1; RAMDISK_COMPRESSION=auto; PATCH_VBMETA_FLAG=auto; NO_VBMETA_PARTITION_PATCH=1;"
-              echo "reset_ak; dump_boot; write_boot;"
-            } > AnyKernel/anykernel.sh
-          fi
+          # 1. Write OnePlus 9 specialized installer script
+          {
+            echo "### AnyKernel3 Ramdisk Mod Script"
+            echo "properties() { '"
+            echo "kernel.string=### Levion Kernel for OnePlus 9/Pro ###"
+            echo "do.devicecheck=1"
+            echo "do.modules=0"
+            echo "do.systemless=1"
+            echo "do.cleanup=1"
+            echo "do.cleanuponabort=0"
+            echo "device.name1=OnePlus9Pro"
+            echo "device.name2=lemonadep"
+            echo "device.name3=OnePlus9ProTMO"
+            echo "device.name4=lemonadept"
+            echo "device.name5=OnePlus9"
+            echo "device.name6=lemonade"
+            echo "device.name7=OnePlus9TMO"
+            echo "device.name8=lemonadet"
+            echo "device.name9=OnePlus9VZW"
+            echo "device.name10=lemonadev"
+            echo "supported.versions=15-16"
+            echo "'; }"
+            echo "fstrim -v /data;"
+            echo 'boot_attributes() { set_perm_recursive 0 0 755 644 $RAMDISK/overlay.d/*; set_perm_recursive 0 0 750 750 $RAMDISK/overlay.d/sbin; }'
+            echo "BLOCK=boot; IS_SLOT_DEVICE=1; RAMDISK_COMPRESSION=auto; PATCH_VBMETA_FLAG=auto; NO_VBMETA_PARTITION_PATCH=1;"
+            echo ". tools/ak3-core.sh;"
+            echo "dump_boot; write_boot;"
+            echo 'if [ -f vendor_dlkm.img ]; then flash_generic vendor_dlkm; fi'
+            echo 'vendor_boot_attributes() { set_perm_recursive 0 0 755 644 $RAMDISK/*; }'
+            echo "BLOCK=vendor_boot; IS_SLOT_DEVICE=1; RAMDISK_COMPRESSION=auto; PATCH_VBMETA_FLAG=auto; NO_VBMETA_PARTITION_PATCH=1;"
+            echo "reset_ak; dump_boot; write_boot;"
+          } > AnyKernel/anykernel.sh
 
           # 2. Copy vendor_ramdisk, banner, and README if present
           if [ -d "vendor_ramdisk" ]; then cp -r vendor_ramdisk AnyKernel/; fi
           if [ -f "banner" ]; then cp banner AnyKernel/; fi
           if [ -f "README.md" ]; then cp README.md AnyKernel/; fi
 
-          # 3. Copy kernel Image
+          # 3. Copy matched kernel binary
           cp out/arch/arm64/boot/Image AnyKernel/Image
           
           # 4. Stage modules and strip debug symbols
