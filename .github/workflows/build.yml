@@ -35,21 +35,20 @@ jobs:
             echo '    CAN ISO 15765-2 Transport Protocol (ISO-TP)' >> drivers/net/can/can-isotp/Kconfig
           fi
 
-      - name: Patch Baseband Guard Check & Defconfig
+      - name: Setup Defconfig & Disable BBG
         run: |
           mkdir -p out
           export PATH="$HOME/clang/bin:$PATH"
           
-          # Disable strict error aborts in Baseband-guard Makefile
-          sed -i 's/$(error Please follow Baseband-guard.*/# Bypassed BBG check/g' security/baseband-guard/Makefile || true
-          sed -i 's/$(error BBG not enable in CONFIG_LSM.*/# Bypassed LSM check/g' security/baseband-guard/Makefile || true
+          # Disable CONFIG_BBG in source defconfigs to skip broken baseband_guard.c
+          sed -i 's/CONFIG_BBG=y/CONFIG_BBG=n/g' arch/arm64/configs/vendor/lahaina-gki_defconfig || true
           
           # Generate base config
           make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 vendor/lahaina-gki_defconfig
           
-          # Disable KernelSU (for Magisk) and configure LSM
+          # Explicitly disable BBG and KernelSU (for Magisk)
+          scripts/config --file out/.config --disable CONFIG_BBG
           scripts/config --file out/.config --disable CONFIG_KSU
-          scripts/config --file out/.config --set-str CONFIG_LSM "lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf,bbg"
 
       - name: Compile Kernel
         run: |
@@ -58,7 +57,7 @@ jobs:
           export SUBARCH=arm64
           export CC=clang
           
-          # Pass KCFLAGS to suppress treating C99 declaration warnings as fatal errors
+          # Compile kernel ignoring minor C99 statement warnings
           make -j$(nproc) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 KCFLAGS="-Wno-declaration-after-statement -Wno-error"
 
       - name: Package with AnyKernel3
