@@ -16,7 +16,7 @@ jobs:
       - name: Set up Build Environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential bc bison flex libssl-dev libncurses-dev libelf-dev git zip gcc-aarch64-linux-gnu
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libncurses-dev libelf-dev git zip gcc-aarch64-linux-gnu e2fsprogs
 
       - name: Download Clang Toolchain
         run: |
@@ -50,20 +50,32 @@ jobs:
           scripts/config --file out/.config --disable CONFIG_BBG
           scripts/config --file out/.config --disable CONFIG_KSU
 
-      - name: Compile Kernel
+      - name: Compile Kernel & Modules
         run: |
           export PATH="$HOME/clang/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=arm64
           export CC=clang
           
-          # KBUILD_MODPOST_WARN=1 allows modpost to proceed past missing OPlus symbol checks
           make -j$(nproc) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 KCFLAGS="-Wno-declaration-after-statement -Wno-error" KBUILD_MODPOST_WARN=1
+          make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 INSTALL_MOD_PATH=../modules_out modules_install
 
-      - name: Package with AnyKernel3
+      - name: Package with AnyKernel3 & Build vendor_dlkm
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel
-          cp out/arch/arm64/boot/Image AnyKernel/ || cp out/arch/arm64/boot/Image.gz AnyKernel/ || cp out/arch/arm64/boot/Image.lz4 AnyKernel/
+          
+          # Copy compiled kernel image
+          cp out/arch/arm64/boot/Image AnyKernel/
+          
+          # Copy modules to AnyKernel modules directory
+          mkdir -p AnyKernel/modules/system/lib/modules
+          find modules_out/ -name "*.ko" -exec cp {} AnyKernel/modules/system/lib/modules/ \;
+          
+          # Copy vendor_ramdisk or existing dlkm files if available in tree
+          if [ -d "vendor_ramdisk" ]; then
+            cp -r vendor_ramdisk AnyKernel/
+          fi
+          
           cd AnyKernel
           zip -r9 ../Levion-NetHunter-MT7610U.zip * -x .git\* README.md
 
