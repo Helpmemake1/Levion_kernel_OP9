@@ -65,32 +65,86 @@ jobs:
           export PATH="$HOME/clang/bin:$PATH"
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel
           
-          # Clean default template placeholders
-          rm -rf AnyKernel/ramdisk AnyKernel/patch AnyKernel/anykernel.sh AnyKernel/.git
+          # Clean template placeholders
+          rm -rf AnyKernel/ramdisk AnyKernel/patch AnyKernel/.git
           
-          # 1. Copy author's specialized anykernel.sh and vendor_ramdisk from repo root
-          if [ -f "anykernel.sh" ]; then
-            cp anykernel.sh AnyKernel/anykernel.sh
-          fi
+          # 1. Locate and copy anykernel.sh, vendor_ramdisk, banner, and README from repo
+          find . -maxdepth 3 -name "anykernel.sh" -not -path "./AnyKernel/*" -exec cp {} AnyKernel/anykernel.sh \;
           
-          if [ -d "vendor_ramdisk" ]; then
-            cp -r vendor_ramdisk AnyKernel/
+          # Write fallback anykernel.sh if not found in repository
+          if [ ! -s "AnyKernel/anykernel.sh" ]; then
+            cat << 'EOF' > AnyKernel/anykernel.sh
+### AnyKernel3 Ramdisk Mod Script
+properties() { '
+kernel.string=### Levion Kernel for OnePlus 9/Pro ###
+do.devicecheck=1
+do.modules=0
+do.systemless=1
+do.cleanup=1
+do.cleanuponabort=0
+device.name1=OnePlus9Pro
+device.name2=lemonadep
+device.name3=OnePlus9ProTMO
+device.name4=lemonadept
+device.name5=OnePlus9
+device.name6=lemonade
+device.name7=OnePlus9TMO
+device.name8=lemonadet
+device.name9=OnePlus9VZW
+device.name10=lemonadev
+supported.versions=15-16
+'; }
+
+fstrim -v /data;
+
+boot_attributes() {
+set_perm_recursive 0 0 755 644 $RAMDISK/overlay.d/*;
+set_perm_recursive 0 0 750 750 $RAMDISK/overlay.d/sbin;
+}
+
+BLOCK=boot;
+IS_SLOT_DEVICE=1;
+RAMDISK_COMPRESSION=auto;
+PATCH_VBMETA_FLAG=auto;
+NO_VBMETA_PARTITION_PATCH=1;
+
+. tools/ak3-core.sh;
+
+dump_boot;
+write_boot;
+
+vendor_boot_attributes() {
+set_perm_recursive 0 0 755 644 $RAMDISK/*;
+}
+
+BLOCK=vendor_boot;
+IS_SLOT_DEVICE=1;
+RAMDISK_COMPRESSION=auto;
+PATCH_VBMETA_FLAG=auto;
+NO_VBMETA_PARTITION_PATCH=1;
+
+reset_ak;
+
+dump_boot;
+write_boot;
+EOF
           fi
 
-          # 2. Copy matching kernel binary
+          # 2. Copy vendor_ramdisk, banner, and README if present
+          find . -maxdepth 3 -type d -name "vendor_ramdisk" -not -path "./AnyKernel/*" -exec cp -r {} AnyKernel/ \;
+          find . -maxdepth 3 -name "banner" -not -path "./AnyKernel/*" -exec cp {} AnyKernel/ \;
+          find . -maxdepth 3 -name "README.md" -not -path "./AnyKernel/*" -exec cp {} AnyKernel/ \;
+
+          # 3. Copy matching kernel binary
           cp out/arch/arm64/boot/Image AnyKernel/Image
           
-          # 3. Stage modules and strip debug symbols
+          # 4. Stage modules and strip debug symbols
           mkdir -p dlkm_staging/lib/modules
           find modules_out/ -name "*.ko" -exec cp {} dlkm_staging/lib/modules/ \;
           find dlkm_staging/ -name "*.ko" -exec "$HOME/clang/bin/llvm-strip" --strip-debug --strip-unneeded {} + || true
           
-          # 4. Build EROFS vendor_dlkm.img with lz4hc compression
+          # 5. Build EROFS vendor_dlkm.img with lz4hc compression
           mkfs.erofs -z lz4hc,9 AnyKernel/vendor_dlkm.img dlkm_staging/
-          
-          # 5. Copy banner and README into AnyKernel folder if present
-          if [ -f "banner" ]; then cp banner AnyKernel/; fi
-          if [ -f "README.md" ]; then cp README.md AnyKernel/; fi
 
       - name: Upload Flashable Artifact
         uses: actions/upload-artifact@v4
