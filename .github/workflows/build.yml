@@ -76,14 +76,16 @@ jobs:
           # 3. Stage modules and strip debug symbols to reduce size
           mkdir -p dlkm_staging/lib/modules
           find modules_out/ -name "*.ko" -exec cp {} dlkm_staging/lib/modules/ \;
+          
+          # Strip debug info (collapses modules down to ~200KB each)
           find dlkm_staging/ -name "*.ko" -exec "$HOME/clang/bin/llvm-strip" --strip-debug {} + || true
           
-          # 4. Build compressed EROFS vendor_dlkm.img with LZ4
-          mkfs.erofs -z lz4hc AnyKernel/vendor_dlkm.img dlkm_staging/
+          # 4. Build slim compressed EROFS vendor_dlkm.img with 4k block alignment
+          mkfs.erofs -b 4096 -z lz4hc AnyKernel/vendor_dlkm.img dlkm_staging/lib/modules/
           
-          # 5. Pack AnyKernel zip archive
+          # 5. Pack AnyKernel zip archive (excluding raw modules folder)
           cd AnyKernel
-          zip -r9 ../Levion-NetHunter-MT7610U.zip * -x .git\* README.md
+          zip -r9 ../Levion-NetHunter-MT7610U.zip * -x .git\* README.md modules/\*
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
