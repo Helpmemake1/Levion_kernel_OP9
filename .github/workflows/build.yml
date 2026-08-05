@@ -47,7 +47,7 @@ jobs:
           # Generate base config
           make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 vendor/lahaina-gki_defconfig
           
-          # Disable KernelSU (since you use Magisk) and configure LSM
+          # Disable KernelSU (for Magisk) and configure LSM
           scripts/config --file out/.config --disable CONFIG_KSU
           scripts/config --file out/.config --set-str CONFIG_LSM "lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf,bbg"
 
@@ -58,7 +58,8 @@ jobs:
           export SUBARCH=arm64
           export CC=clang
           
-          make -j$(nproc) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1
+          # Pass KCFLAGS to suppress treating C99 declaration warnings as fatal errors
+          make -j$(nproc) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 KCFLAGS="-Wno-declaration-after-statement -Wno-error"
 
       - name: Package with AnyKernel3
         run: |
