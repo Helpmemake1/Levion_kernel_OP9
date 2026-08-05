@@ -40,12 +40,23 @@ jobs:
           mkdir -p out
           export PATH="$HOME/clang/bin:$PATH"
           
-          # Merge base GKI config with vendor lahaina configs
-          make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 vendor/lahaina-gki_defconfig vendor/lahaina_user.config
+          # Disable CONFIG_BBG in source defconfigs
+          sed -i 's/CONFIG_BBG=y/CONFIG_BBG=n/g' arch/arm64/configs/vendor/lahaina-gki_defconfig || true
+          
+          # Generate base GKI config
+          make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 vendor/lahaina-gki_defconfig
+          
+          # Merge fragment if present
+          if [ -f "arch/arm64/configs/vendor/lahaina_user.config" ]; then
+            ARCH=arm64 ./scripts/kconfig/merge_config.sh -m -O out out/.config arch/arm64/configs/vendor/lahaina_user.config
+          fi
           
           # Explicitly disable BBG and KernelSU
           scripts/config --file out/.config --disable CONFIG_BBG
           scripts/config --file out/.config --disable CONFIG_KSU
+          
+          # Finalize configuration structure
+          make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 olddefconfig
 
       - name: Compile Kernel & Install Modules
         run: |
