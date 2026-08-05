@@ -57,32 +57,31 @@ jobs:
           export SUBARCH=arm64
           export CC=clang
           
-          # Compile kernel image and modules
           make -j$(nproc) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 KCFLAGS="-Wno-declaration-after-statement -Wno-error" KBUILD_MODPOST_WARN=1
           make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 INSTALL_MOD_PATH=../modules_out modules_install
 
-      - name: Package AnyKernel3 with vendor_dlkm.img & vendor_ramdisk
+      - name: Optimize & Build vendor_dlkm.img
         run: |
+          export PATH="$HOME/clang/bin:$PATH"
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel
           
           # 1. Copy core kernel Image
           cp out/arch/arm64/boot/Image AnyKernel/
           
-          # 2. Copy vendor_ramdisk if present in repo root or subdirectories
+          # 2. Copy vendor_ramdisk from tree if available
           if [ -d "vendor_ramdisk" ]; then
             cp -r vendor_ramdisk AnyKernel/
-          elif [ -d "out/vendor_ramdisk" ]; then
-            cp -r out/vendor_ramdisk AnyKernel/
           fi
 
-          # 3. Build vendor_dlkm.img filesystem containing compiled .ko drivers
+          # 3. Stage modules and strip debug symbols to reduce size
           mkdir -p dlkm_staging/lib/modules
           find modules_out/ -name "*.ko" -exec cp {} dlkm_staging/lib/modules/ \;
+          find dlkm_staging/ -name "*.ko" -exec "$HOME/clang/bin/llvm-strip" --strip-debug {} + || true
           
-          # Create EROFS image (standard for Android 12+ GKI vendor_dlkm partitions)
-          mkfs.erofs AnyKernel/vendor_dlkm.img dlkm_staging/
+          # 4. Build compressed EROFS vendor_dlkm.img with LZ4
+          mkfs.erofs -z lz4hc AnyKernel/vendor_dlkm.img dlkm_staging/
           
-          # 4. Zip the flashable package
+          # 5. Pack AnyKernel zip archive
           cd AnyKernel
           zip -r9 ../Levion-NetHunter-MT7610U.zip * -x .git\* README.md
 
